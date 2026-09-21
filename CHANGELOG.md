@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 变更
+
+- `.gitignore` 修正：移除两条指向不存在文件（`assets/donate-alipay.png`）的
+  放行规则，改为注释说明二维码是有意入库；避免与排除规则互相抵消造成困惑。
+- README / README.en：`launchers.json` 示例补注「路径换成你自己机器上的」，
+  明确 `D:/tools/...` 只是示例。
+- `config.py`：在模块 docstring 中把「零硬编码」的边界写清楚 —— 说明两处
+  字面路径的性质（环境变量兜底 / 端口探测候选），而非真正的硬编码。
+- 文档脱敏：`docs/MECHANISM.md` 的实测样本移除真实账号邮箱。
+
 ### 修正
 
 - **文档错误**：早期 README 称「token 约 10 天过期、不会自动续期」，**结论不准确**。

@@ -2,6 +2,17 @@
 
 设计原则：
 - **零硬编码**：所有路径都通过环境变量 / 平台默认值 / 运行时发现得到。
+  这里出现的字面路径只有两种，均非"硬编码"：
+
+  1. ``os.environ.get("PROGRAMFILES", "C:/Program Files")`` 形式 —— 字面值是
+     **环境变量缺失时的平台惯例兜底**；在对应平台上该变量恒定存在，兜底
+     永不生效（用于非 Windows 上导入本模块时不炸）。
+  2. ``DEFAULT_PROXY_CANDIDATES`` —— 本机代理端口的**探测候选**，不是"就用
+     这个"；每个候选都会被 ``socket.create_connection`` 实际试连，连不通就
+     跳过。``--proxy`` / ``CODEX_WEB_LOGIN_PROXY`` 可完全覆盖。
+
+  真正的安装路径（Codex CLI / 桌面端）全部走 ``find_*`` 的探测链 + ``PATH``。
+
 - 用户可通过 env 或 CLI 覆盖任何一项。
 """
 

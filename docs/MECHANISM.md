@@ -149,7 +149,7 @@ function iui(e){
 | `access_token` | **10 天**（实测 `iat` + 240h） | 当前这张"票"，每次请求都带上 |
 | `refresh_token` | **不固定，通常长期** | **用来换新票** |
 
-实测样本（`fanxiaoyongf@gmail.com`）：
+实测样本（账号邮箱已脱敏）：
 
 ```
 iat = 2026-09-22 00:00:57

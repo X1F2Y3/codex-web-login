@@ -334,11 +334,15 @@ chain — tried in order, **stops at the first success**:
 4. System shell forwarding (`explorer.exe` / `open -a`)
 5. Direct spawn
 
-Using your own manager? Just write a JSON file:
+Using your own manager? Just write a JSON file (swap in the path **on your
+machine**):
 
 ```json
 { "launchers": ["D:/tools/codex-manager.exe"] }
 ```
+
+> `D:/tools/codex-manager.exe` is only an example; every entry is resolved as a
+> `Path`, so forward or back slashes both work on Windows.
 
 ---
 

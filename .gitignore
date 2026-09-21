@@ -18,9 +18,9 @@ auth.json*
 *.jwt
 cookies.json
 *.bak
-# 二维码是使用者本地的，不进仓库；显式放行占位说明
-!assets/donate-wechat.png
-!assets/donate-alipay.png
+# 注意：assets/ 下的打赏二维码（donate-wechat.png / donate-alipay.jpg）
+# 是维护者本人的收款码，有意入库；此处不设 ignore，避免与 .gitignore
+# 的排除规则互相抵消。
 
 # 编辑器 / 系统
 .vscode/

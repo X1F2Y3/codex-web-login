@@ -359,11 +359,14 @@ function UN(e){
 4. 系统 shell 转发（`explorer.exe` / `open -a`）
 5. 直接启动
 
-用你自己的管理器？写个 JSON 就行：
+用你自己的管理器？写个 JSON 就行（把路径换成**你自己机器上**的启动器）：
 
 ```json
 { "launchers": ["D:/tools/codex-manager.exe"] }
 ```
+
+> `D:/tools/codex-manager.exe` 只是示例；列表里的每个路径都会被 `Path` 解析，
+> Windows 下写正斜杠或反斜杠都可以。
 
 ---
 
