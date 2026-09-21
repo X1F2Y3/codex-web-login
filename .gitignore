@@ -1,0 +1,26 @@
+# 字节码 / 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+venv/
+.venv/
+
+# 敏感：绝不提交任何凭据
+auth.json
+auth.json*
+*token*.txt
+!docs/**/token-example.txt
+cookies.json
+*.bak
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
