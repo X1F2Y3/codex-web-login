@@ -14,7 +14,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](#-requirements)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/tests-36%20passed-brightgreen.svg?style=flat-square)](tests/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 [English](README.en.md) · [简体中文](README.md)
@@ -205,12 +205,48 @@ The free tier has a monthly cap; once exhausted, requests fail — that is
 </details>
 
 <details>
-<summary><b>It stopped working after a few days?</b></summary>
+<summary><b>It asks me to sign in again after a few days?</b></summary>
 
-Tokens expire in **about 10 days** and **do not auto-refresh** (they aren't
-OAuth-issued, so there's no valid `refresh_token`).
+**It depends on `refresh_token`, not on the `access_token`'s `exp`.** Two separate things:
 
-Just redo the three steps.
+| | Lifetime | Auto-renewed? |
+|:--|:--|:--|
+| `access_token` (the web token) | **10 days** (`iat` + 240h) | — it's just the current ticket |
+| `tokens.refresh_token` | **usually long-lived** | — **Codex uses it to mint new tickets** |
+
+Codex's Rust side (`auth/manager.rs`) contains the full refresh logic:
+
+```
+"Refreshing token"                                  <- it does refresh
+"last_refresh is in the past"                       <- trigger condition
+"Skipping token refresh because auth changed
+ after guarded reload."                             <- account-switch guard
+not_refreshable_auth                                <- not refreshable state
+```
+
+**Key point: before the `access_token` expires, Codex automatically exchanges the
+`refresh_token` for a fresh one and rewrites `auth.json`. The session persists.**
+So normally you do **not** need to redo the steps every 10 days.
+
+What actually kills the session:
+
+| Case | Why |
+|:--|:--|
+| **You clicked "Log out" on the web** | Server-side revoke invalidates the `refresh_token` |
+| **OpenAI rotated the `refresh_token`** | If it was already used elsewhere (account switch, cookie reset) the old one dies |
+| **`auth.json` holds a `refresh_token` from a *different* account** | Refresh picks the wrong ticket, or reports not-refreshable |
+
+> [!IMPORTANT]
+> **This is this tool's known weak spot.** From the browser we can only obtain the
+> `access_token` (`/api/auth/session` does not return the `refresh_token`), so the
+> `refresh_token` is a borrowed placeholder from an older backup.
+> That does **not** affect the initial login, but if the borrowed token doesn't
+> belong to the current account, **auto-refresh will fail after 10 days and you'll
+> need to rerun the steps.**
+>
+> If you can obtain the real `refresh_token` for the account (e.g. from an
+> `auth.json` produced by the official OAuth flow), this tool will preserve it and
+> the session becomes long-lived.
 
 </details>
 
@@ -330,8 +366,9 @@ If the **official installer feels slow**, try **Codex App Manager**:
 | Limitation | Detail |
 |:--|:--|
 | **Quota is your account's real cap** | Account info ≠ usable quota |
-| **Token expires in ~10 days** | No auto-refresh; just redo the steps |
-| **Signing out revokes it** | Web "log out" triggers server-side revoke; re-grab a token |
+| **`access_token` expires in 10 days** | With a valid `refresh_token` Codex renews it **automatically** |
+| **The borrowed `refresh_token` may not renew** | The browser only yields `access_token`; if it belongs to another account, rerun after 10 days |
+| **Signing out revokes it** | Web "log out" kills the `refresh_token`; re-grab a token |
 | **Relies on no signature check** | If OpenAI adds one, `check` will fail |
 
 ---
@@ -343,7 +380,7 @@ git clone https://github.com/X1F2Y3/codex-web-login
 cd codex-web-login
 pip install -e ".[dev]"
 
-pytest          # 31 unit tests
+pytest          # 36 unit tests
 ruff check .    # lint
 ```
 

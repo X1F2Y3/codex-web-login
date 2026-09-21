@@ -15,7 +15,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg?style=flat-square)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)](#-环境要求)
-[![Tests](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/tests-36%20passed-brightgreen.svg?style=flat-square)](tests/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 [简体中文](README.md) · [English](README.en.md)
@@ -230,11 +230,44 @@ codex-web-login check
 </details>
 
 <details>
-<summary><b>过几天又不能用了？</b></summary>
+<summary><b>过几天又会要求重新登录？</b></summary>
 
-token **约 10 天过期**，而且**不会自动续期**（因为它不是 OAuth 换来的，没有有效的 `refresh_token`）。
+**取决于 `refresh_token`，不是 `access_token` 的 `exp`。** 这两件事必须分开看：
 
-到期后**重新走一遍三步**即可。如果不想记时间，可以在到期前重跑一次。
+| | 时长 | 会不会自动续 |
+|:--|:--|:--|
+| `access_token`（网页 token） | **10 天**（`iat` + 240h） | —— 它只是"当前这张票" |
+| `tokens.refresh_token` | **不固定，通常长期有效** | —— **Codex 靠它自动换新票** |
+
+Codex 的 Rust 侧（`auth/manager.rs`）里有完整的刷新逻辑：
+
+```
+"Refreshing token"                                  ← 会主动刷新
+"last_refresh is in the past"                       ← 触发条件
+"Skipping token refresh because auth changed
+ after guarded reload."                             ← 换账号后的保护
+not_refreshable_auth                                ← 不可刷新状态
+```
+
+**关键：`access_token` 到期前，Codex 会自动拿 `refresh_token` 换一张新的，写入 `auth.json`，
+登录态一直保持。** 所以正常情况下你**不需要**每 10 天重跑一次。
+
+真正会让登录态失效的是这三种：
+
+| 情况 | 为什么 |
+|:--|:--|
+| **你在网页端点了「退出登录」** | 触发服务端 revoke，`refresh_token` 当场作废 |
+| **官方把 `refresh_token` 轮换掉了** | 若别处先用过一次（换账号、清 Cookie 重登），旧的即失效 |
+| **`auth.json` 里的 `refresh_token` 不是本账号的** | 刷新会拿错账号的票，或直接报不可刷新 |
+
+> [!IMPORTANT]
+> **本工具的已知短板正在这里。** 它从浏览器只能拿到 `access_token`
+> （`/api/auth/session` 不返回 `refresh_token`），所以 `refresh_token` 是从历史备份里借的占位。
+> 这**不影响首次登录成功**，但如果那个借来的 `refresh_token` 不属于当前账号，
+> **10 天后就无法自动续期，需要重跑一次。**
+>
+> 若你有办法拿到本账号真实的 `refresh_token`（例如从官方 OAuth 流程产的 `auth.json` 里），
+> 本工具会优先保留它，登录态即可长期保持。
 
 </details>
 
@@ -376,8 +409,9 @@ Windows / 其他平台 → [**下载最新版**](https://github.com/Wangnov/Code
 | 限制 | 说明 |
 |:--|:--|
 | **额度是账号真实上限** | 显示账号信息 ≠ 能用。额度耗尽需等重置或升级 |
-| **token 约 10 天过期** | 不会自动续期，到期重跑一次即可 |
-| **退出登录会作废** | 在网页端「退出登录」会触发服务端 revoke，需重新取 token |
+| **`access_token` 10 天到期** | 有有效 `refresh_token` 时会**自动续期**，无需手动干预 |
+| **本工具借来的 `refresh_token` 可能续不上** | 浏览器只给 `access_token`；若非本账号的，10 天后需重跑一次 |
+| **网页端「退出登录」会作废** | 触发服务端 revoke，`refresh_token` 失效，需重新取 token |
 | **依赖客户端不验签** | 官方若加校验会失效，届时 `check` 会报错 |
 
 ---
@@ -389,7 +423,7 @@ git clone https://github.com/X1F2Y3/codex-web-login
 cd codex-web-login
 pip install -e ".[dev]"
 
-pytest          # 31 个单元测试
+pytest          # 36 个单元测试
 ruff check .    # lint
 ```
 
@@ -418,11 +452,11 @@ src/codex_web_login/
 
 <div align="center">
 
-| 微信 | 支付宝 |
+| 微信赞赏码 | 支付宝 |
 |:--:|:--:|
-| <img src="assets/donate-wechat.png" width="180" alt="微信打赏"> | <img src="assets/donate-alipay.png" width="180" alt="支付宝打赏"> |
+| <img src="assets/donate-wechat.png" width="200" alt="微信赞赏码"> | <img src="assets/donate-alipay.jpg" width="200" alt="支付宝打赏"> |
 
-<sub>把二维码图片放到 <code>assets/</code> 目录即可显示</sub>
+<sub>完全自愿。不付费也能使用全部功能。</sub>
 
 </div>
 

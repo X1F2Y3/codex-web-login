@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import time
 
 import pytest
@@ -148,3 +149,69 @@ def test_auth_json_roundtrip_no_bom(tmp_path, monkeypatch):
 
     reloaded = json.loads(raw.decode("utf-8"))
     assert reloaded["tokens"]["account_id"] == "acct-1234"
+
+
+# --------------------------------------------------------------------------
+# refresh_token 借用（账号感知）—— 2026-09-22 修正：决定 10 天后能否自动续期
+# --------------------------------------------------------------------------
+def test_borrow_prefers_same_account(monkeypatch, tmp_path):
+    """同名账号的备份优先于更晚的异账号备份。"""
+    from codex_web_login import token as token_mod
+
+    mine = make_jwt(sample_payload(email="me@example.com"))
+    other = make_jwt(sample_payload(email="other@example.com"))
+
+    def write(name, access, rt):
+        p = tmp_path / name
+        p.write_text(json.dumps({"tokens": {"access_token": access, "refresh_token": rt}}),
+                     encoding="utf-8")
+        return p
+
+    # 异账号的文件更新（mtime 更晚），同账号的更旧
+    old = write("auth.json.mine-20260101.bak", mine, "rt-MINE")
+    new = write("auth.json.other-20260901.bak", other, "rt-OTHER")
+    os.utime(old, (1000, 1000))
+    os.utime(new, (2000, 2000))
+
+    monkeypatch.setattr(token_mod, "codex_home", lambda: tmp_path)
+    rt, src = token_mod._borrow_refresh_token("me@example.com")
+    assert rt == "rt-MINE"
+    assert "me@example.com" in src
+
+
+def test_borrow_falls_back_when_no_same_account(monkeypatch, tmp_path):
+    """没有同账号备份时退回异账号，并如实标注来源。"""
+    from codex_web_login import token as token_mod
+
+    other = make_jwt(sample_payload(email="other@example.com"))
+    (tmp_path / "auth.json.other.bak").write_text(
+        json.dumps({"tokens": {"access_token": other, "refresh_token": "rt-OTHER"}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(token_mod, "codex_home", lambda: tmp_path)
+    rt, src = token_mod._borrow_refresh_token("nobody@example.com")
+    assert rt == "rt-OTHER"
+    assert "other@example.com" in src
+
+
+def test_borrow_returns_none_when_no_backups(monkeypatch, tmp_path):
+    from codex_web_login import token as token_mod
+
+    monkeypatch.setattr(token_mod, "codex_home", lambda: tmp_path / "nope")
+    assert token_mod._borrow_refresh_token("x@example.com") == (None, None)
+
+
+def test_build_auth_keeps_explicit_refresh_token():
+    """显式传入的 refresh_token 必须原样保留（不被借用逻辑覆盖）。"""
+    info = parse_token(make_jwt(sample_payload()))
+    data = build_chatgpt_auth(info, "rt-EXPLICIT")
+    assert data["tokens"]["refresh_token"] == "rt-EXPLICIT"
+
+
+def test_build_auth_refresh_token_not_none():
+    """即使是空串也不能是 None —— Codex 要求该字段是 string。"""
+    info = parse_token(make_jwt(sample_payload()))
+    data = build_chatgpt_auth(info, "")
+    assert data["tokens"]["refresh_token"] == ""
+    assert data["tokens"]["refresh_token"] is not None

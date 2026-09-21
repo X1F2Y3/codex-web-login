@@ -131,26 +131,65 @@ def has_bom(path: Path) -> bool:
         return False
 
 
-def _borrow_refresh_token() -> str | None:
-    """从历史备份里借一个 refresh_token 占位。
+def _email_of(auth_dict: dict) -> str | None:
+    """从 auth 字典里尽力取出 email（用于判断 refresh_token 归属）。"""
+    tk = auth_dict.get("tokens") or {}
+    for key in ("access_token", "id_token"):
+        raw = tk.get(key)
+        if not isinstance(raw, str) or raw.count(".") != 2:
+            continue
+        try:
+            payload = json.loads(_b64url_decode(raw.split(".")[1]))
+        except (ValueError, KeyError):
+            continue
+        profile = payload.get(CLAIM_PROFILE) or {}
+        if profile.get("email"):
+            return profile["email"]
+    return None
 
-    这不是必须的：id_token / access_token 都由网页 token 顶替，
-    Codex 不会用 refresh_token 续期。但没有它某些版本会告警。
+
+def _borrow_refresh_token(want_email: str | None = None) -> tuple[str | None, str | None]:
+    """从历史备份里借一个 refresh_token。
+
+    返回 (refresh_token, 来源说明)。
+
+    ★ 为什么必须区分账号（2026-09-22 实测修正）：
+        Codex 的 Rust 侧（auth/manager.rs）会拿 tokens.refresh_token 去
+        https://auth.openai.com/oauth/token 换新 access_token，从而保持登录态。
+        如果借来的 refresh_token 属于**别的账号**，刷新要么换回错账号的票、
+        要么直接进 not_refreshable_auth 状态。
+        所以优先借**同账号**的；借不到再退而求其次，并如实告知。
     """
     home = codex_home()
     if not home.is_dir():
-        return None
+        return None, None
+
+    same: tuple[str, str] | None = None
+    other: tuple[str, str] | None = None
+
     for f in sorted(home.glob("auth.json*"), key=lambda x: x.stat().st_mtime, reverse=True):
-        if f.name == "auth.json" or f.suffix not in (".bak", "") and "bak" not in f.name:
+        if f.name == "auth.json" or ("bak" not in f.name and f.suffix != ".bak"):
             continue
         try:
             d = json.loads(f.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError):
             continue
         rt = (d.get("tokens") or {}).get("refresh_token")
-        if rt:
-            return rt
-    return None
+        if not rt:
+            continue
+        owner = _email_of(d)
+        candidate = (rt, f"{f.name}（{owner or '未知账号'}）")
+        if want_email and owner and owner.lower() == want_email.lower():
+            if same is None:
+                same = candidate
+        elif other is None:
+            other = candidate
+
+    if same:
+        return same
+    if other:
+        return other
+    return None, None
 
 
 def build_chatgpt_auth(info: TokenInfo, refresh_token: str | None = None) -> dict:
@@ -159,15 +198,19 @@ def build_chatgpt_auth(info: TokenInfo, refresh_token: str | None = None) -> dic
     为什么 id_token 也填 token 本身：
         Codex 要求 id_token 是 string（填 null 会报 `invalid type: null`），
         但它不做任何语义校验，所以同一个 JWT 可以同时占 id_token / access_token。
+
+    refresh_token：
+        优先用调用方显式传入的；否则从备份里借（优先同账号）。
+        借不到就留空字符串 —— 首次登录不受影响，只是到期后无法自动续期。
     """
-    rt = refresh_token or _borrow_refresh_token() or ""
+    rt = refresh_token if refresh_token is not None else _borrow_refresh_token(info.email)[0]
     return {
         "auth_mode": "chatgpt",
         "OPENAI_API_KEY": None,
         "tokens": {
             "id_token": info.raw,
             "access_token": info.raw,
-            "refresh_token": rt,
+            "refresh_token": rt or "",
             "account_id": info.account_id,
         },
         "last_refresh": time.strftime("%Y-%m-%dT%H:%M:%S.") + "000000000Z",

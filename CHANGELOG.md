@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+### 修正
+
+- **文档错误**：早期 README 称「token 约 10 天过期、不会自动续期」，**结论不准确**。
+  实测 `access_token` 的 10 天（`iat`+240h）没错，但 Codex 的 Rust 侧
+  （`auth/manager.rs`）会用 `tokens.refresh_token` 调
+  `auth.openai.com/oauth/token` **自动换新票并回写 `auth.json`** —— 登录态能自续。
+  真正决定是否掉登录态的是 `refresh_token` 的有效性，不是 `access_token` 的 `exp`。
+- **`refresh_token` 借用改为账号感知**：优先借 `email` 相同的备份（刷新路径可用，
+  登录态可长期保持）；无同账号备份时退回异账号并如实标注来源；完全借不到时写空串
+  （`""` 而非 `null`，Codex 要求该字段是 string）。首次登录不受影响。
+- **CLI 增强**：`login` 现在会打印 `refresh_token` 的来源与续期能力提示，
+  并在无刷新能力时明确告知「10 天后需重跑」。
+
 ## [1.0.0] - 2026-09-22
 
 首个正式版本。

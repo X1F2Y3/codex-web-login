@@ -148,6 +148,14 @@ def cmd_login(args) -> int:
     b = p.read_bytes()
     print(f"      OK  {len(b)}B  head={list(b[:4])}")
 
+    # 刷新能力说明（决定 10 天后能否自动续期）
+    rt = (data.get("tokens") or {}).get("refresh_token") or ""
+    if rt:
+        print("      refresh_token: 已从本地备份借入（用于 access_token 到期后自动续期）")
+        print("        ⚠ 若非本账号的备份，10 天后可能无法自动续期，届时重跑本命令即可")
+    else:
+        print("      refresh_token: 无（首次登录不受影响；10 天后需重跑本命令）")
+
     # 5. 校验
     print("[4/5] 校验 login status ...")
     env = proxy_env(settings.resolve_proxy())

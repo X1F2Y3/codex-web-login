@@ -137,6 +137,87 @@ function iui(e){
 
 ---
 
+## 证据 4：登录态的存续由 `refresh_token` 决定，不是 `access_token.exp`
+
+> 本节是 **2026-09-22 的修正**。早期文档写过「token 约 10 天过期、不会自动续期」，
+> 这个说法**只对了一半**，会误导使用者。
+
+### 两个 token 的分工
+
+| | 时长 | 作用 |
+|:--|:--|:--|
+| `access_token` | **10 天**（实测 `iat` + 240h） | 当前这张"票"，每次请求都带上 |
+| `refresh_token` | **不固定，通常长期** | **用来换新票** |
+
+实测样本（`fanxiaoyongf@gmail.com`）：
+
+```
+iat = 2026-09-22 00:00:57
+exp = 2026-10-02 00:00:57
+时长 = 240.0 小时 = 10.0 天
+```
+
+`access_token` 的 10 天是真的。**但这不等于登录态 10 天后失效。**
+
+### Rust 侧确实会主动刷新
+
+判定逻辑不在 JS 里，而在 `codex.exe`（317 MB 的 Rust 二进制）中。
+从二进制里提取到的字符串（`login\src\auth\manager.rs`）：
+
+```
+"Refreshing token"                                          ← 它会主动刷新
+"last_refresh is in the past"                               ← 触发条件
+"Token data is not available."                              ← 拿不到 refresh 数据
+"Failed to refresh token: " / "Reloading auth"              ← 刷新失败后重载
+"Skipping token refresh because auth changed after
+ guarded reload."                                           ← 换账号后的保护
+"Your access token could not be refreshed because you have
+ since logged out or signed in to another account."         ← 明确错误语义
+not_refreshable_auth                                        ← 独立的不可刷新状态
+```
+
+刷新端点与请求体（同二进制）：
+
+```
+https://auth.openai.com/oauth/token
+Content-Type: application/x-www-form-urlencoded
+grant_type=refresh_token        ← CreateOAuth2TokenRequestBody 的字段
+```
+
+**结论：`access_token` 到期前，Codex 会用 `tokens.refresh_token` 去
+`auth.openai.com/oauth/token` 换一张新的并回写 `auth.json`。登录态自己会续。**
+
+### 那什么时候会真的掉登录态？
+
+只有这几种：
+
+| 情况 | 机制 |
+|:--|:--|
+| 网页端点「退出登录」 | 服务端 revoke，`refresh_token` 当场作废 |
+| `refresh_token` 被别处轮换过 | OAuth refresh token 通常一次性轮换，旧的失效即 `invalid_grant` |
+| `refresh_token` 不是本账号的 | 刷新换回错账号的票，或直接落到 `not_refreshable_auth` |
+
+### 本工具的短板（如实说明）
+
+浏览器 `/api/auth/session` **只返回 `access_token`，不返回 `refresh_token`**。
+所以本工具的 `refresh_token` 是从 `~/.codex/auth.json*` 历史备份里**借**的。
+
+这带来一个真实限制：
+
+> **首次登录 100% 成功**（因为它只依赖 `access_token` 的结构合法性）；
+> 但**能否长期免维护，取决于借来的 `refresh_token` 是否属于当前账号。**
+
+因此 2026-09-22 起，借用逻辑改为**账号感知**（`token.py::_borrow_refresh_token`）：
+
+1. 优先借用 `email` **完全相同**的备份 → 刷新路径可用，登录态可长期保持；
+2. 没有同账号备份时，退回借异账号的，并在 CLI 里**如实打印来源**；
+3. 完全借不到时写入空串（`""`，不是 `null` —— Codex 要求该字段是 string），
+   首次登录照常成功，10 天后需重跑。
+
+自测覆盖：`tests/test_token.py::test_borrow_prefers_same_account` 等 5 个用例。
+
+---
+
 ## 官方能不能修
 
 **能，但"修"分两个层次：**
