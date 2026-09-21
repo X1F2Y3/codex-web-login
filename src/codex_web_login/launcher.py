@@ -22,10 +22,10 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 
 from .config import (
     Settings,
@@ -75,9 +75,10 @@ def strat_user_launcher(s: Settings, env: dict[str, str]) -> LaunchResult:
         if not p.exists():
             continue
         if p.suffix.lower() in (".lnk", ".bat", ".cmd"):
-            # 交给 shell 处理
-            if _spawn(["explorer.exe", str(p) if not str(p).endswith(".lnk") else str(p)]):
+            # 交给 shell 处理（explorer 能正确解析 .lnk）
+            if _spawn(["explorer.exe", str(p)]):
                 return LaunchResult(True, "user-launcher", str(p))
+            continue
         if _spawn([str(p)], env):
             return LaunchResult(True, "user-launcher", str(p))
     return LaunchResult(False, "user-launcher", "无可用条目")
@@ -98,7 +99,7 @@ def _iter_shortcuts() -> Iterable[Path]:
         return
     roots = [
         app_data() / "Microsoft" / "Windows" / "Start Menu" / "Programs",
-        Path(os.environ.get("ProgramData", "C:/ProgramData"))
+        Path(os.environ.get("PROGRAMDATA", "C:/ProgramData"))
         / "Microsoft" / "Windows" / "Start Menu" / "Programs",
         Path.home() / "Desktop",
     ]
@@ -122,7 +123,9 @@ def strat_shortcut(s: Settings, env: dict[str, str]) -> LaunchResult:
         found.append(lnk)
         if _spawn(["explorer.exe", str(lnk)]):
             return LaunchResult(True, "shortcut", str(lnk))
-    return LaunchResult(False, "shortcut", f"扫描 {len(found)} 个快捷方式，均失败" if found else "无快捷方式")
+    if found:
+        return LaunchResult(False, "shortcut", f"扫描 {len(found)} 个快捷方式，均失败")
+    return LaunchResult(False, "shortcut", "无快捷方式")
 
 
 def strat_shell_protocol(s: Settings, env: dict[str, str]) -> LaunchResult:

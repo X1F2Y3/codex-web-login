@@ -69,7 +69,7 @@ def find_codex_cli() -> Path | None:
         roots += [
             local_app_data() / "Programs" / "Codex" / "resources",
             local_app_data() / "Programs" / "Codex",
-            Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Codex" / "resources",
+            Path(os.environ.get("PROGRAMFILES", "C:/Program Files")) / "Codex" / "resources",
         ]
     else:
         roots += [
@@ -140,7 +140,7 @@ class Settings:
     _warnings: list[str] = field(default_factory=list, repr=False)
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         s = cls()
         s.proxy = os.environ.get(ENV_PROXY) or None
         lch = os.environ.get(ENV_LAUNCHER)

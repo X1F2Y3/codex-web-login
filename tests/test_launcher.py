@@ -8,8 +8,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pytest
-
 from codex_web_login import config, launcher
 from codex_web_login.launcher import LaunchResult, launch
 

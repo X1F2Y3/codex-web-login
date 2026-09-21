@@ -31,13 +31,13 @@ from .config import (
 from .launcher import launch
 from .process import kill_all, running_processes, wait_until_gone
 from .token import (
+    atomic_write_auth,
     backup_auth,
     build_chatgpt_auth,
     list_backups,
     parse_token,
     read_auth,
     restore_backup,
-    atomic_write_auth,
 )
 from .verify import run_checks
 

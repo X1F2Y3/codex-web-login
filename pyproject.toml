@@ -28,8 +28,11 @@ dependencies = []
 dev = ["pytest>=7", "ruff>=0.4", "mypy>=1.8"]
 
 [project.urls]
-Homepage = "https://github.com/USERNAME/codex-web-login"
-Issues = "https://github.com/USERNAME/codex-web-login/issues"
+Homepage = "https://github.com/X1F2Y3/codex-web-login"
+Documentation = "https://github.com/X1F2Y3/codex-web-login#readme"
+Issues = "https://github.com/X1F2Y3/codex-web-login/issues"
+Changelog = "https://github.com/X1F2Y3/codex-web-login/blob/main/CHANGELOG.md"
+"机制分析" = "https://github.com/X1F2Y3/codex-web-login/blob/main/docs/MECHANISM.md"
 
 [project.scripts]
 codex-web-login = "codex_web_login.cli:main"
@@ -49,3 +52,5 @@ select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# 让 `pytest` 在未执行 `pip install -e .` 时也能直接跑（clone 即测）
+pythonpath = ["src"]

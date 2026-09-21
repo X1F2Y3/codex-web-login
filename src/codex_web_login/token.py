@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import os
 import re
@@ -209,10 +210,8 @@ def list_backups() -> list[Path]:
 
 def _prune_backups(keep: int) -> None:
     for old in list_backups()[keep:]:
-        try:
+        with contextlib.suppress(OSError):
             old.unlink()
-        except OSError:
-            pass
 
 
 def restore_backup(keyword: str) -> Path:
