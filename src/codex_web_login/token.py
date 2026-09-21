@@ -28,6 +28,16 @@ CLAIM_PROFILE = "https://api.openai.com/profile"
 
 _JWT_RE = re.compile(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$")
 
+# restore_backup() 在回滚前留下的"墓碑"快照的后缀标记。
+# 它是**回滚前的状态**（通常正是那份有问题的 token），不能当历史凭据借用，
+# 否则回滚等于原地踏步。_borrow_refresh_token 会跳过带这个标记的文件。
+_TOMBSTONE_TAG = "pre-restore"
+
+
+def _is_tombstone(name: str) -> bool:
+    """该备份文件是否是回滚墓碑（而非可借用的历史凭据）。"""
+    return _TOMBSTONE_TAG in name.lower()
+
 
 @dataclass
 class TokenInfo:
@@ -170,6 +180,11 @@ def _borrow_refresh_token(want_email: str | None = None) -> tuple[str | None, st
     for f in sorted(home.glob("auth.json*"), key=lambda x: x.stat().st_mtime, reverse=True):
         if f.name == "auth.json" or ("bak" not in f.name and f.suffix != ".bak"):
             continue
+        # ★ 排除 restore_backup() 留下的 "pre-restore" 墓碑快照。
+        #   它是"回滚前的状态"（通常正是那份坏 token），mtime 又是最新的，
+        #   若不排除会被当成首选候选借走 —— 等于把刚回滚掉的错误又复活回来。
+        if _is_tombstone(f.name):
+            continue
         try:
             d = json.loads(f.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError):
@@ -263,7 +278,8 @@ def restore_backup(keyword: str) -> Path:
     if not cands:
         raise FileNotFoundError(f"没有匹配 '{keyword}' 的备份")
     src = cands[0]
-    backup_auth(tag="pre-restore")
+    # tag 用常量，避免和 _is_tombstone 的判据字符串漂移
+    backup_auth(tag=_TOMBSTONE_TAG)
     shutil.copy2(src, auth_path())
     if has_bom(auth_path()):
         # 备份本身带 BOM 时清掉

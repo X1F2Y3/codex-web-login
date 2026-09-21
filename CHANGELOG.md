@@ -5,6 +5,42 @@
 
 ## [Unreleased]
 
+### 修正（代码质量审计 — 三技能门禁）
+
+按 `backend-quality-gate` / `lean-implementation` / `frontend-design-guard`
+逐文件审计后的修复。
+
+- **★ 回滚后自我污染｜`token.py`**：`restore_backup()` 回滚前会生成
+  `auth.json.pre-restore-<ts>.bak`（保存**回滚前**的状态，通常正是那份坏
+  token）。该文件名同时命中 `_borrow_refresh_token` 的 `glob("auth.json*")`
+  与 `"bak" in name` 判据，且 mtime 最新 → **会被优先借走**，等于把刚回滚掉
+  的错误又复活回来。现新增 `_is_tombstone()` 显式排除 `pre-restore` 墓碑快照。
+- **★ 启动器丢弃代理环境｜`launcher.py`**：`strat_user_launcher()` 对
+  `.lnk/.bat/.cmd` 走 `_spawn(["explorer.exe", p])` **不传 `env`**，而 `.exe`
+  分支传了 —— 通过快捷方式启动的 Codex 拿不到注入的代理，与 README 承诺不符。
+  现按扩展名分派：`.lnk` 用 `cmd /c start "" "p"`、`.bat/.cmd` 用 `cmd /c p`，
+  两者都传 `env`（`start` 会继承父进程环境）。`strat_shortcut()` 同样修正。
+- **进程匹配误判/误杀｜`process.py`**：`running_processes()` 原用子串匹配
+  （`name.lower() in text`），`codex.exe` 会命中 `mycodex.exe`。现改为解析
+  `tasklist` CSV 的 Image Name 列做**精确比对**。POSIX 兜底由 `pkill -f`
+  （全命令行正则匹配，易误杀）改为 `pkill -x`（精确进程名）并补
+  `check=False` + `timeout=5`。
+- **常量双份事实来源｜`process.py`**：`PROCESS_NAMES` 与 `_KILL_ORDER` 内容
+  重复、顺序不同，改一处易漏另一处。现 `_KILL_ORDER` 由 `PROCESS_NAMES` 派生。
+- **文档与实现不符｜`verify.py`**：`read_account()` 的 docstring 声称"直接调
+  app-server 的 `account/read`"，实际是 `return None` 占位且无调用方。现修正
+  docstring 为如实描述（恒返回 None 的占位），并标注 TODO。
+- 多处函数内 import（`has_bom` / `app_data` / `urllib.*` / `time`）提到模块顶部；
+  `verify.py` 的 `rounds = (0, 10, 10)` 魔法数提为 `_SCOPE_RETRY_DELAYS` 常量；
+  `query_server_usage` 的过宽 `except Exception` 收窄为
+  `(URLError, OSError, TimeoutError)`。
+- `launcher.py` 的 `_DETACHED` 加显式括号（原式语义正确但极易被误读为
+  `0x8 | (0x200 if ... else 0)`）；`strat_shortcut` / `_iter_shortcuts` 补充
+  关于"为何不用 explorer.exe"与生成器 `return` 语义的注释。
+- **CLI 日志不再混入 stdout**：新增 `-v/--verbose` 开关，日志一律走 stderr
+  且默认静默（CLI 的 stdout 是产品输出，混入日志会破坏可解析性）；
+  `_read_clipboard()` 的空 `except: pass` 改为记 debug。
+
 ### 变更
 
 - `.gitignore` 修正：移除两条指向不存在文件（`assets/donate-alipay.png`）的

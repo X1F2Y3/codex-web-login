@@ -35,8 +35,12 @@ from .config import (
     load_user_launchers,
 )
 
-# Windows 下不弹控制台窗口 + 分离进程
-_DETACHED = 0x00000008 | 0x00000200 if is_windows() else 0
+# Windows 下不弹控制台窗口 + 分离进程。
+# 显式加括号：`|` 的优先级**低于**条件表达式，若写成
+#   `0x8 | 0x200 if is_windows() else 0`
+# 语义上虽然恰好等价（被解析为 `(0x8|0x200) if ... else 0`），但极易被误读成
+# `0x8 | (0x200 if ... else 0)`，改错一个符号就是静默的 flag 丢失。
+_DETACHED = (0x00000008 | 0x00000200) if is_windows() else 0
 
 
 @dataclass
@@ -74,9 +78,17 @@ def strat_user_launcher(s: Settings, env: dict[str, str]) -> LaunchResult:
         p = Path(raw).expanduser()
         if not p.exists():
             continue
-        if p.suffix.lower() in (".lnk", ".bat", ".cmd"):
-            # 交给 shell 处理（explorer 能正确解析 .lnk）
-            if _spawn(["explorer.exe", str(p)]):
+        if p.suffix.lower() == ".lnk":
+            # .lnk 需要 shell 解析。不能用 explorer.exe —— 它会另起进程树、
+            # **不继承我们注入的 env**，代理环境变量会静默丢失（与本文档承诺不符）。
+            # `cmd /c start "" "p"` 由 cmd 解析快捷方式，且 start 继承父进程 env。
+            if _spawn(["cmd", "/c", "start", "", str(p)], env):
+                return LaunchResult(True, "user-launcher", str(p))
+            continue
+        if p.suffix.lower() in (".bat", ".cmd"):
+            # 批处理必须由 cmd 执行；直接 Popen 会因不是可执行映像而失败。
+            # 显式传 env，否则代理变量丢失。
+            if _spawn(["cmd", "/c", str(p)], env):
                 return LaunchResult(True, "user-launcher", str(p))
             continue
         if _spawn([str(p)], env):
@@ -96,6 +108,9 @@ def strat_env_launcher(s: Settings, env: dict[str, str]) -> LaunchResult:
 
 def _iter_shortcuts() -> Iterable[Path]:
     if not is_windows():
+        # 生成器函数里裸 `return` 等价于 StopIteration，合法但容易被读成"返回 None"。
+        # 显式 `return iter(())`... 在生成器中同样只是终止；这里保留 `return`
+        # 但加注释说明意图：非 Windows 平台没有 .lnk 概念，直接产出空序列。
         return
     roots = [
         app_data() / "Microsoft" / "Windows" / "Start Menu" / "Programs",
@@ -121,7 +136,9 @@ def strat_shortcut(s: Settings, env: dict[str, str]) -> LaunchResult:
     found = []
     for lnk in _iter_shortcuts():
         found.append(lnk)
-        if _spawn(["explorer.exe", str(lnk)]):
+        # 同 strat_user_launcher：explorer.exe 不继承我们注入的 env，
+        # 换 `cmd /c start "" "lnk"` 才能把代理环境带进去。
+        if _spawn(["cmd", "/c", "start", "", str(lnk)], env):
             return LaunchResult(True, "shortcut", str(lnk))
     if found:
         return LaunchResult(False, "shortcut", f"扫描 {len(found)} 个快捷方式，均失败")

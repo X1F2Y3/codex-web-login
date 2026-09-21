@@ -15,11 +15,25 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import Settings, codex_home, find_codex_cli, is_windows, proxy_env
-from .token import parse_token, read_auth
+from .config import (
+    Settings,
+    app_data,
+    codex_home,
+    find_codex_cli,
+    is_windows,
+    proxy_env,
+)
+from .token import has_bom, parse_token, read_auth
+
+# check_scope_projection 的重试节奏（秒）。桌面端启动后 app-server 需要一点时间
+# 才能把 scope_v3 投影写出来，所以先立刻查一次，失败则等 10s 再查两次。
+# 三项分别对应"立即"、"再等 10s"、"再等 10s"。
+_SCOPE_RETRY_DELAYS: tuple[int, ...] = (0, 10, 10)
 
 
 @dataclass
@@ -85,7 +99,6 @@ def check_auth_file() -> CheckResult:
     p = codex_home() / "auth.json"
     if not p.is_file():
         return CheckResult("auth.json", False, "不存在")
-    from .token import has_bom
 
     if has_bom(p):
         return CheckResult("auth.json", False, "有 BOM —— Codex 会解析失败")
@@ -110,8 +123,6 @@ def _scope_candidates() -> list[Path]:
         Win:  %APPDATA%\\Codex\\sentry\\scope_v3.json
         macOS/Linux: ~/Library/Application Support/Codex/... 等
     """
-    from .config import app_data, codex_home
-
     roots = [
         app_data() / "Codex",
         codex_home(),
@@ -161,9 +172,6 @@ def check_scope_projection() -> CheckResult:
 def query_server_usage(token: str, account_id: str, proxy: str | None,
                        timeout: int = 30) -> tuple[int, str]:
     """查询服务端额度（wham/usage）。返回 (status, body)。"""
-    import urllib.error
-    import urllib.request
-
     req = urllib.request.Request(
         "https://chatgpt.com/backend-api/wham/usage",
         headers={
@@ -182,7 +190,8 @@ def query_server_usage(token: str, account_id: str, proxy: str | None,
             return resp.status, resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", "replace")
-    except Exception as exc:  # 网络不可达等
+    except (urllib.error.URLError, OSError, TimeoutError) as exc:
+        # 网络不可达 / DNS 失败 / 超时 —— 都是可预期的环境问题，不算 bug
         return 0, str(exc)
 
 
@@ -193,7 +202,7 @@ def run_checks(settings: Settings, wait_appserver: bool = True) -> Report:
     rep.checks.append(check_auth_file())
     rep.checks.append(check_login_status(env, settings.timeout))
 
-    rounds = (0, 10, 10) if wait_appserver else (0,)
+    rounds = _SCOPE_RETRY_DELAYS if wait_appserver else (0,)
     last_scope: CheckResult | None = None
     for delay in rounds:
         if delay:
@@ -231,6 +240,14 @@ def run_checks(settings: Settings, wait_appserver: bool = True) -> Report:
 
 
 def read_account(settings: Settings) -> dict | None:
-    """直接调 app-server 的 account/read（走 codex CLI 不可用时返回 None）。"""
-    # 这里保持轻量：真正的 app-server 握手由桌面端完成，我们只读投影。
+    """读取当前登录账号。
+
+    ★ 尚未实现（2026-09-22 审计确认）：本函数**恒返回 None**，没有任何调用方。
+    原 docstring 声称"直接调 app-server 的 account/read"，与实际实现不符，
+    会误导维护者以为该能力已就绪。
+
+    当前账号信息的来源是 auth.json 的 token 投影（见 parse_token），
+    已能满足 CLI 的全部需求；此处保留签名只为将来的 app-server 集成占位。
+    """
+    # TODO(app-server): 接入 account/read 后再补实现，届时同步更新本 docstring。
     return None

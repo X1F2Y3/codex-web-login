@@ -13,7 +13,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
+import time
 from pathlib import Path
 
 from . import __version__
@@ -43,11 +45,17 @@ from .verify import run_checks
 
 BANNER = f"codex-web-login {__version__}"
 
+# CLI 的"产品"是 stdout 上的可读输出，不是日志流。所以日志默认静默，
+# 只在 -v/--verbose 时打开，且写到 stderr，不污染 stdout。
+_log = logging.getLogger("codex_web_login.cli")
+
 
 # --------------------------------------------------------------------------
 # 输入
 # --------------------------------------------------------------------------
 def _read_clipboard() -> str | None:
+    # 三重兜底：tkinter → pbpaste → 放弃。任一步失败都不算错误（剪贴板可能为空
+    # 或环境无 GUI），但至少记一条 debug 便于排查"为什么读不到"。
     try:
         import tkinter
 
@@ -56,16 +64,16 @@ def _read_clipboard() -> str | None:
         text = r.clipboard_get()
         r.destroy()
         return text
-    except Exception:
-        pass
+    except Exception as exc:  # tkinter 缺失 / 无 GUI / 剪贴板为空
+        _log.debug("tkinter 读剪贴板失败: %s", exc)
     try:
         import subprocess
 
         r = subprocess.run(["pbpaste"], capture_output=True, timeout=5)
         if r.returncode == 0:
             return r.stdout.decode("utf-8", "replace")
-    except Exception:
-        pass
+    except Exception as exc:  # pbpaste 仅 macOS 有；其他平台 OSError
+        _log.debug("pbpaste 读剪贴板失败: %s", exc)
     return None
 
 
@@ -177,8 +185,6 @@ def cmd_login(args) -> int:
         print("[5/5] 启动桌面端 ...")
         r = launch(settings, env)
         if r.ok:
-            import time
-
             time.sleep(settings.launch_wait)
 
     print("\ndone. 用 `codex-web-login check` 复查（桌面端起来后等 20 秒再看）。")
@@ -201,8 +207,6 @@ def cmd_backups(args) -> int:
         return 0
     print(f"{len(items)} 个备份（新 -> 旧）：")
     for b in items:
-        import time
-
         ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(b.stat().st_mtime))
         print(f"  {ts}  {b.stat().st_size:>7}B  {b.name}")
     return 0
@@ -249,6 +253,12 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=__doc__,
     )
     p.add_argument("--version", action="version", version=BANNER)
+    # 全局开关：日志默认静默（stdout 留给产品输出），-v 时打开 debug 到 stderr。
+    p.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="输出调试日志到 stderr（排查用）",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     a = sub.add_parser("login", help="写入 token 并登录")
@@ -279,8 +289,23 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _configure_logging(verbose: bool) -> None:
+    """配置 CLI 日志：默认静默，-v 时 debug 级别且只到 stderr。
+
+    为什么不用 basicConfig(INFO)：CLI 的 stdout 是产品输出（会被人 grep/管道），
+    日志混进去会破坏可解析性。所以日志一律走 stderr，且默认不输出。
+    """
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    logging.getLogger("codex_web_login").addHandler(handler)
+    logging.getLogger("codex_web_login").setLevel(
+        logging.DEBUG if verbose else logging.CRITICAL + 1
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    _configure_logging(getattr(args, "verbose", False))
     try:
         return args.func(args)
     except KeyboardInterrupt:
