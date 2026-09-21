@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="300" viewBox="0 0 760 300" role="img" aria-label="登录成功后的 Codex 界面示意">
+  <defs>
+    <linearGradient id="win" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b1b1f"/>
+      <stop offset="100%" stop-color="#141417"/>
+    </linearGradient>
+    <linearGradient id="pop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#26262c"/>
+      <stop offset="100%" stop-color="#1f1f24"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e8b062"/>
+      <stop offset="100%" stop-color="#f0c987"/>
+    </linearGradient>
+    <clipPath id="winclip"><rect x="0" y="0" width="760" height="300" rx="12"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#winclip)">
+    <rect width="760" height="300" fill="url(#win)"/>
+
+    <!-- 标题栏 -->
+    <rect width="760" height="34" fill="#1f1f24"/>
+    <circle cx="20" cy="17" r="5.5" fill="#ff5f57"/>
+    <circle cx="38" cy="17" r="5.5" fill="#febc2e"/>
+    <circle cx="56" cy="17" r="5.5" fill="#28c840"/>
+    <text x="380" y="22" font-family="Segoe UI, Arial, sans-serif" font-size="12"
+          fill="#8b8b96" text-anchor="middle">Codex</text>
+
+    <!-- 侧栏 -->
+    <rect y="34" width="196" height="266" fill="#17171b"/>
+    <text x="20" y="62" font-family="Segoe UI, Arial, sans-serif" font-size="12.5"
+          font-weight="600" fill="#c9c9d1">Codex</text>
+    <g font-family="Segoe UI, Arial, sans-serif" font-size="11.5" fill="#7d7d88">
+      <text x="20" y="90">新对话</text>
+      <text x="20" y="112">Pull Request</text>
+      <text x="20" y="134">定时任务</text>
+      <text x="20" y="156">插件</text>
+    </g>
+    <line x1="12" y1="176" x2="184" y2="176" stroke="#2a2a31"/>
+
+    <!-- 主区：欢迎语 -->
+    <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+      <circle cx="380" cy="150" r="17" fill="none" stroke="#4a4a55" stroke-width="1.6"/>
+      <path d="M373 150h14M380 143v14" stroke="#4a4a55" stroke-width="1.6" stroke-linecap="round"/>
+      <text x="380" y="200" font-size="15" fill="#9a9aa6">你想让我们构建什么？</text>
+    </g>
+
+    <!-- ★ 弹出的账号面板 -->
+    <g>
+      <rect x="8" y="182" width="180" height="110" rx="10" fill="url(#pop)" stroke="#33333c"/>
+      <!-- 头像 -->
+      <circle cx="26" cy="203" r="11" fill="#e8b062"/>
+      <text x="26" y="207.5" font-family="Segoe UI, Arial, sans-serif" font-size="11"
+            font-weight="700" fill="#3a2a12" text-anchor="middle">玄</text>
+      <!-- 名字 + 档位 -->
+      <text x="44" y="200" font-family="Segoe UI, Arial, sans-serif" font-size="12"
+            font-weight="600" fill="#ececf2">玄猫</text>
+      <text x="44" y="214" font-family="Segoe UI, Arial, sans-serif" font-size="10"
+            fill="#8b8b96">Free</text>
+
+      <!-- 额度条 -->
+      <text x="20" y="238" font-family="Segoe UI, Arial, sans-serif" font-size="10"
+            fill="#a8a8b4">剩余用量</text>
+      <text x="152" y="238" font-family="Segoe UI, Arial, sans-serif" font-size="10"
+            fill="#7d7d88" text-anchor="end">100%</text>
+      <rect x="20" y="244" width="156" height="5" rx="2.5" fill="#33333c"/>
+      <rect x="20" y="244" width="156" height="5" rx="2.5" fill="url(#bar)"/>
+
+      <g font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#7d7d88">
+        <text x="20" y="266">1 个月</text>
+        <text x="176" y="266" text-anchor="end">10月22日</text>
+      </g>
+      <text x="20" y="284" font-family="Segoe UI, Arial, sans-serif" font-size="10"
+            fill="#5b8cff">升级至 Plus</text>
+    </g>
+
+    <!-- 高亮框 -->
+    <rect x="4" y="178" width="188" height="118" rx="12" fill="none"
+          stroke="#38e0c8" stroke-width="2" stroke-dasharray="7 5"/>
+    <rect x="150" y="166" width="66" height="20" rx="10" fill="#38e0c8"/>
+    <text x="183" y="180" font-family="Segoe UI, Arial, sans-serif" font-size="10.5"
+          font-weight="700" fill="#0b1020" text-anchor="middle">这里 ✓</text>
+  </g>
+</svg>

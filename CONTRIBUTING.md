@@ -5,7 +5,7 @@
 ## 环境
 
 ```bash
-git clone https://github.com/USERNAME/codex-web-login
+git clone https://github.com/X1F2Y3/codex-web-login
 cd codex-web-login
 pip install -e ".[dev]"
 ```

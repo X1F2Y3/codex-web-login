@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240" role="img" aria-label="codex-web-login">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020"/>
+      <stop offset="55%" stop-color="#111a33"/>
+      <stop offset="100%" stop-color="#0b1020"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5b8cff"/>
+      <stop offset="100%" stop-color="#38e0c8"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b8cff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#5b8cff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="26"/></filter>
+  </defs>
+
+  <rect width="900" height="240" fill="url(#bg)"/>
+  <circle cx="150" cy="40" r="120" fill="url(#glow)" filter="url(#blur)"/>
+  <circle cx="780" cy="205" r="130" fill="url(#glow)" filter="url(#blur)"/>
+
+  <!-- 网格 -->
+  <g stroke="#243156" stroke-width="1" opacity="0.5">
+    <path d="M0 60H900M0 120H900M0 180H900"/>
+    <path d="M60 0V240M180 0V240M300 0V240M420 0V240M540 0V240M660 0V240M780 0V240"/>
+  </g>
+
+  <!-- 图标：钥匙 + 终端提示符 -->
+  <g transform="translate(72,78)">
+    <rect x="0" y="0" width="84" height="84" rx="20" fill="#141d38" stroke="#2c3b66"/>
+    <path d="M30 30h24a13 13 0 1 1 0 26h-2v6h-7v-6h-4v6h-7v-6h-4z"
+          fill="none" stroke="url(#accent)" stroke-width="4.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="47" cy="43" r="3.4" fill="url(#accent)"/>
+  </g>
+
+  <text x="188" y="112" font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="46" font-weight="700" fill="#eaf0ff" letter-spacing="-0.5">codex-web-login</text>
+
+  <text x="190" y="146" font-family="Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="17" fill="#9fb0d8">用网页版 accessToken 打通 Codex 的 ChatGPT 通道</text>
+
+  <g font-family="Consolas, SFMono-Regular, Menlo, monospace" font-size="14">
+    <rect x="190" y="166" width="330" height="34" rx="9" fill="#0e1730" stroke="#26355c"/>
+    <text x="206" y="188" fill="#38e0c8">$</text>
+    <text x="220" y="188" fill="#c7d6ff">codex-web-login login</text>
+  </g>
+
+  <!-- 右上角标签 -->
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+    <rect x="612" y="34" width="112" height="28" rx="14" fill="#16223f" stroke="#2c3b66"/>
+    <text x="668" y="53" fill="#8fe6d6" text-anchor="middle">绕过手机号墙</text>
+    <rect x="734" y="34" width="100" height="28" rx="14" fill="#16223f" stroke="#2c3b66"/>
+    <text x="784" y="53" fill="#9fb0d8" text-anchor="middle">零硬编码</text>
+  </g>
+</svg>

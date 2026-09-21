@@ -1,0 +1,11 @@
+# 支持这个项目 / Support
+
+# 方式一：GitHub Sponsors（推荐，国外）
+github: [X1F2Y3]
+
+# 方式二：国内打赏（见 README 里的二维码）
+# 把二维码图片放到 assets/donate-wechat.png 和 assets/donate-alipay.png
+# 这两个文件不需要在 FUNDING.yml 里声明，README 会直接引用。
+
+# 方式三：爱发电 / Ko-fi / Patreon（如启用，取消下面的注释并填入你的用户名）
+# custom: ["https://afdian.com/a/yourname"]

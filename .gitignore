@@ -15,9 +15,12 @@ venv/
 auth.json
 auth.json*
 *token*.txt
-!docs/**/token-example.txt
+*.jwt
 cookies.json
 *.bak
+# 二维码是使用者本地的，不进仓库；显式放行占位说明
+!assets/donate-wechat.png
+!assets/donate-alipay.png
 
 # 编辑器 / 系统
 .vscode/
